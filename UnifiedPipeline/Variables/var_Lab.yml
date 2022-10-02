@@ -21,10 +21,6 @@ variables:
     value: '95ada4b6-9a74-480b-82f8'
   - name: Tags
     value: '{"COSTID": "EU_SAAS_SNET_A_ALL_NPE_LAB"}'
-  - name: ServiceLogDbSecretUser
-    value: 'd-eu-svn1-admin'
-  - name: ServiceLogDbSecretPassword
-    value: 'd-eu-svn1-pass'
   - name: CMUDbSecretUser
     value: 'd-eu-cmu1-admin'
   - name: CMUDbSecretPassword
