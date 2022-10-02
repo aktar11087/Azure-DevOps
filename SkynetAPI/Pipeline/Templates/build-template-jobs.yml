@@ -25,7 +25,7 @@ parameters:
   default: "windows-latest"
 - name: dotnetVersion
   type: string
-  default: '3.x'
+  default: '2.x'
 - name: hasTest
   type: boolean
   default: true
@@ -53,8 +53,8 @@ jobs:
   - task: DownloadPackage@1
     inputs:
       packageType: 'nuget'
-      feed: '/374a4352-08fa-4511-b5de-c90ac180f43d'
-      definition: 'SKYNET.HRMS21NET.Common'
+      feed: '/374a4352-08fa-4511-b5d'
+      definition: 'SKYNET.HRMS22NET.Common'
       extract: true
       version: 'latest'
       downloadPath: '$(System.ArtifactsDirectory)' #/lib/net462
@@ -69,25 +69,25 @@ jobs:
   - task: DownloadPackage@1
     inputs:
       packageType: 'nuget'
-      feed: '/374a4352-08fa-4511-b5de-c90ac180f43d'
+      feed: '/374a4352-08fa-4511-b5de-c9'
       definition: 'SKYNET.PSLib'
       extract: true
       version: 'latest'
       downloadPath: '$(System.ArtifactsDirectory)' #/lib/net462
       
   - task: PowerShell@2
-    displayName: Move Artifact to HRMS21NETWeb\HRMS21NET
+    displayName: Move Artifact to HRMS22NETWeb\HRMS22NET
     inputs:
       targetType: inline
       script: |
         dir $(System.ArtifactsDirectory)/lib/net462
         New-Item -Path "$(Build.SourcesDirectory)" -Name "References" -ItemType "directory"
-        New-Item -Path "$(Build.SourcesDirectory)/References" -Name "HRMS21NETWeb" -ItemType "directory"
-        New-Item -Path "$(Build.SourcesDirectory)/References/HRMS21NETWeb" -Name "HRMS21NET" -ItemType "directory"
+        New-Item -Path "$(Build.SourcesDirectory)/References" -Name "HRMS22NETWeb" -ItemType "directory"
+        New-Item -Path "$(Build.SourcesDirectory)/References/HRMS22NETWeb" -Name "HRMS22NET" -ItemType "directory"
 
-        Move-Item -Path $(System.ArtifactsDirectory)/lib/net462/*.dll -Destination $(Build.SourcesDirectory)/References/HRMS21NETWeb/HRMS21NET
+        Move-Item -Path $(System.ArtifactsDirectory)/lib/net462/*.dll -Destination $(Build.SourcesDirectory)/References/HRMS22NETWeb/HRMS22NET
       
-        dir $(Build.SourcesDirectory)/References/HRMS21NETWeb/HRMS21NET
+        dir $(Build.SourcesDirectory)/References/HRMS22NETWeb/HRMS22NET
 
   - task: CmdLine@2
     displayName: Resolve O Drive Assembly References
