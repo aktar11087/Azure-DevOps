@@ -101,6 +101,6 @@ jobs:
         wsConfigFile: 'whiteSource-file.config'
         artifactsPath: ${{ parameters.pathToPublish }}
         pullTemplateRepo: true
-        productName: 'Unit4 PROSOFT-$(Build.SourceBranchName)'
+        productName: 'RMU-$(Build.SourceBranchName)'
         projectName: ${{ parameters.projectName }}
-        userKey: $(userKey-PROSOFT)
+        userKey: $(userKey-RMU)
