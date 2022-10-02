@@ -1,32 +1,16 @@
 variables: 
   - name: Location
-    value: 'Southeast Asia'
+    value: 'North Europe'
   - name: RegionCode
-    value: asg
+    value: eu
   - name: webAppSlot
     value: 'autotest'
   - name: AppServicePlanSku
     value: 'S1'
-  - name: CMUPrivateAppServiceName
+  - name: SkynetAppServiceName
     value: 't-$(RegionCode)-cmu1'
-  - name: MCSAppServiceName
+  - name: RMUAppServiceName
     value: 't-$(RegionCode)-mcs1'
-  - name: ServiceLogPrivateAppServiceName
-    value: 't-$(RegionCode)-svl1'
-  - name: ClaimPublicAppServiceName
-    value: 't-$(RegionCode)-clm1-public'
-  - name: ClaimPrivateAppServiceName
-    value: 't-$(RegionCode)-clm1'
-  - name: LeavePublicAppServiceName
-    value: 't-$(RegionCode)-lev1-public'
-  - name: LeavePrivateAppServiceName
-    value: 't-$(RegionCode)-lev1'
-  - name: EmployeePublicAppServiceName
-    value: 't-$(RegionCode)-emp1-public'
-  - name: EmployeePrivateAppServiceName
-    value: 't-$(RegionCode)-emp1'
-  - name: ReferencePrivateAppServiceName
-    value: 't-$(RegionCode)-ref1'
   - name: KeyVaultName
     value: 't-asg-u4pr-kv'
   - name: DatabaseEdition
@@ -34,21 +18,21 @@ variables:
   - name: DatabaseSku
     value: 'S1'
   - name: AzureSubscriptionId
-    value: '95ada4b6-9a74-480b-82f8-08dbcbedcca6'
+    value: '95ada4b6-9a74-480b-82f8'
   - name: Tags
-    value: '{"U4COSTID": "ASG_SAAS_U4PR_A_ALL_NPES_LAB"}'
+    value: '{"COSTID": "EU_SAAS_SNET_A_ALL_NPE_LAB"}'
   - name: ServiceLogDbSecretUser
-    value: 't-asg-svl1-admin'
+    value: 'd-eu-svn1-admin'
   - name: ServiceLogDbSecretPassword
-    value: 't-asg-svl1-pass'
+    value: 'd-eu-svn1-pass'
   - name: CMUDbSecretUser
-    value: 't-asg-cmu1-admin'
+    value: 'd-eu-cmu1-admin'
   - name: CMUDbSecretPassword
     value: 't-asg-cmu1-pass'
   - name: IdsClientSecretCMUPortal
     value: "IdsClientSecretCMUPortal"
-  - name: CMUConStringSecretName
-    value: 'CMUDBConn'
+  - name: RMUConStringSecretName
+    value: 'RMUDBConn'
   - name : WorkspacesResourceGroupName
     value : 'monitoring'
   - name : WorkspacesName
