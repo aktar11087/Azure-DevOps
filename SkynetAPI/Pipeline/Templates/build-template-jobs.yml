@@ -4,7 +4,7 @@ parameters:
   default: 'main'
 - name: projectName
   type: string
-  default: 'PROSOFT-Private.EmployeeAPI'
+  default: 'Skynet.API'
 - name: projectDirectory
   type: string
   default: $(Build.SourcesDirectory)\$(Build.Repository.Name)
@@ -54,7 +54,7 @@ jobs:
     inputs:
       packageType: 'nuget'
       feed: '/374a4352-08fa-4511-b5de-c90ac180f43d'
-      definition: 'PROSOFT.HRMS21NET.Common'
+      definition: 'SKYNET.HRMS21NET.Common'
       extract: true
       version: 'latest'
       downloadPath: '$(System.ArtifactsDirectory)' #/lib/net462
@@ -62,7 +62,7 @@ jobs:
     inputs:
       packageType: 'nuget'
       feed: '/374a4352-08fa-4511-b5de-c90ac180f43d'
-      definition: 'PROSOFT.HRMS21NET.Messages'
+      definition: 'SKYNET.HRMS21NET.Messages'
       extract: true
       version: 'latest'
       downloadPath: '$(System.ArtifactsDirectory)' #/lib/net462
@@ -70,7 +70,7 @@ jobs:
     inputs:
       packageType: 'nuget'
       feed: '/374a4352-08fa-4511-b5de-c90ac180f43d'
-      definition: 'PROSOFT.PSLib'
+      definition: 'SKYNET.PSLib'
       extract: true
       version: 'latest'
       downloadPath: '$(System.ArtifactsDirectory)' #/lib/net462
@@ -136,6 +136,6 @@ jobs:
         wsConfigFile: 'whiteSource-file.config'
         artifactsPath: ${{ parameters.pathToPublish }}
         pullTemplateRepo: true
-        productName: 'Unit4 PROSOFT-$(Build.SourceBranchName)'
+        productName: 'SKYNET-$(Build.SourceBranchName)'
         projectName: ${{ parameters.projectName }}
-        userKey: $(userKey-PROSOFT)
+        userKey: $(userKey-SKYNET)
