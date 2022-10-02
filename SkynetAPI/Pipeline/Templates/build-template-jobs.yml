@@ -54,15 +54,15 @@ jobs:
     inputs:
       packageType: 'nuget'
       feed: '/374a4352-08fa-4511'
-      definition: 'SKYNET.HRMS22NET.Common'
+      definition: 'SKYNET.HRMS23NET.Common'
       extract: true
       version: 'latest'
       downloadPath: '$(System.ArtifactsDirectory)' #/lib/net462
   - task: DownloadPackage@1
     inputs:
       packageType: 'nuget'
-      feed: '/374a4352-08fa-4511-b5de-c90ac180f43d'
-      definition: 'SKYNET.HRMS22NET.Messages'
+      feed: '/374a4352-08fa-4511-b5de-c90ac180f43'
+      definition: 'SKYNET.HRMS23NET.Messages'
       extract: true
       version: 'latest'
       downloadPath: '$(System.ArtifactsDirectory)' #/lib/net462
@@ -76,7 +76,7 @@ jobs:
       downloadPath: '$(System.ArtifactsDirectory)' #/lib/net462
       
   - task: PowerShell@2
-    displayName: Move Artifact to HRMS22NETWeb\HRMS22NET
+    displayName: Move Artifact to HRMS23NETWeb\HRMS23NET
     inputs:
       targetType: inline
       script: |
@@ -85,7 +85,7 @@ jobs:
         New-Item -Path "$(Build.SourcesDirectory)/References" -Name "HRMS23NETWeb" -ItemType "directory"
         New-Item -Path "$(Build.SourcesDirectory)/References/HRMS23NETWeb" -Name "HRMS23NET" -ItemType "directory"
 
-        Move-Item -Path $(System.ArtifactsDirectory)/lib/net462/*.dll -Destination $(Build.SourcesDirectory)/References/HRMS22NETWeb/HRMS22NET
+        Move-Item -Path $(System.ArtifactsDirectory)/lib/net462/*.dll -Destination $(Build.SourcesDirectory)/References/HRMS23NETWeb/HRMS23NET
       
         dir $(Build.SourcesDirectory)/References/HRMS23NETWeb/HRMS23NET
 
