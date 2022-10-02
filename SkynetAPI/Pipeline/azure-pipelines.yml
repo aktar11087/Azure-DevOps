@@ -74,4 +74,4 @@ stages:
     appServiceName: $(AppServiceName)
     resourceGroup: PSSDev
     azureSubscription: $(AzureSubscription)
-    subscriptionID: 245bac96-bc23-47e7-b08d-b4735997896m
+    subscriptionID: 245bac96-bc23-47e7-b08d-b47
