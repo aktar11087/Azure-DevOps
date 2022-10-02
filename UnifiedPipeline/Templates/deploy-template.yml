@@ -52,7 +52,7 @@ stages:
         Tags: $(Tags)
         appInsightName: '$(RegionCode)-SaaS-Snet-001-${{parameters.Stage}}-WEB'
 
-################# Rawflame MANAGEMENT ##################
+################# Rawflame Management ##################
   - ${{ if eq(parameters.RunRMU, true)}}:
     - template: Pipeline/Templates/deploy-template-jobs.yml@RMU
       parameters:
