@@ -1,0 +1,288 @@
+parameters:
+- name: 'Stage'
+  type: string
+
+- name: 'Dependency'
+  type: string   
+
+- name: RunCMU
+  type: boolean
+  default: false 
+
+- name: RunMicroSite
+  type: boolean
+  default: false 
+- name: RunReferencePrivate
+  type: boolean
+  default: false 
+
+- name: RunServiceLogPrivate
+  type: boolean
+  default: false 
+  
+- name: RunClaimPublic
+  type: boolean
+  default: false 
+- name: RunClaimPrivate
+  type: boolean
+  default: false 
+
+- name: RunLeavePublic
+  type: boolean
+  default: false 
+- name: RunLeavePrivate
+  type: boolean
+  default: false 
+
+- name: RunEmployeePublic
+  type: boolean
+  default: false 
+- name: RunEmployeePrivate
+  type: boolean
+  default: false 
+
+
+- name: 'AzureSubscription'
+  type: string
+stages:
+- stage: '${{parameters.Stage}}'
+  displayName: 'Deploy to ${{parameters.Stage}}'
+  dependsOn: ${{parameters.Dependency}}
+  variables:
+  - template: "../Variables/var_${{parameters.Stage}}.yml"
+  jobs:
+
+################################################################################################
+################# Enable dependency if needed based on app config requirement ##################
+################################################################################################
+
+############## Service Log ##################
+  - ${{ if eq(parameters.RunServiceLogPrivate, true)}}:
+    - template: Pipeline/Templates/deploy-template-jobs.yml@ServiceLog
+      parameters:
+        Stage: ${{parameters.Stage}}
+        ProjectName: 'PROSOFT-ServiceLog.API'
+        AzureSubscription: ${{parameters.AzureSubscription}}
+        projectDirectory:  $(Build.SourcesDirectory)/$(ServiceLog.name)
+        RepoCheckoutName: 'ServiceLog'
+        AppServiceName: '$(ServiceLogPrivateAppServiceName)-api'
+        ResourceGroup: $(ServiceLogPrivateAppServiceName)
+        DatabaseServerName: $(ServiceLogPrivateAppServiceName)-sql
+        DatabaseName: $(ServiceLogPrivateAppServiceName)-db
+        AppServicePlanName: $(ServiceLogPrivateAppServiceName)-sp
+        webAppSlot: $(webAppSlot)
+        AppServicePlanSku: $(AppServicePlanSku)
+        KeyVaultName: $(KeyVaultName)
+        Location: $(Location)
+        DatabaseEdition: $(DatabaseEdition)
+        DatabaseSku: $(DatabaseSku)
+        AzureSubscriptionId: $(AzureSubscriptionId)
+        Tags: $(Tags)
+        appInsightName: '$(RegionCode)-SaaS-U4SVL-001-${{parameters.Stage}}-WEB'
+        DbSecretUser: $(ServiceLogDbSecretUser)
+        DbSecretPassword: $(ServiceLogDbSecretPassword)
+
+################# CLOUND MANAGEMENT ##################
+  - ${{ if eq(parameters.RunCMU, true)}}:
+    - template: Pipeline/Templates/deploy-template-jobs.yml@CloudManagement
+      parameters:
+        Stage: ${{parameters.Stage}}
+        ProjectName: 'PROSOFT-CloudManagement.API'
+        AzureSubscription: ${{parameters.AzureSubscription}}
+        projectDirectory:  $(Build.SourcesDirectory)/$(CloudManagement.name)
+        RepoCheckoutName: 'CloudManagement'
+        ServiceLogAppServiceName: '$(ServiceLogPrivateAppServiceName)-api'
+        AppServiceName: $(CMUPrivateAppServiceName)-api
+        AppServicePlanName: $(CMUPrivateAppServiceName)-sp
+        appInsightName: '$(RegionCode)-SaaS-U4CMU-001-${{parameters.Stage}}-WEB'
+        ResourceGroup: $(CMUPrivateAppServiceName)
+        DatabaseServerName: $(CMUPrivateAppServiceName)-sql
+        DatabaseName: $(CMUPrivateAppServiceName)-db
+        webAppSlot: $(webAppSlot)
+        AppServicePlanSku: $(AppServicePlanSku)
+        Location: $(Location)
+        DatabaseEdition: $(DatabaseEdition)
+        DatabaseSku: $(DatabaseSku)
+        AzureSubscriptionId: $(AzureSubscriptionId)
+        DbSecretUser: $(CMUDbSecretUser)
+        DbSecretPassword: $(CMUDbSecretPassword)
+        Tags: $(Tags)
+        IdsClientSecretCMUPortal: $(IdsClientSecretCMUPortal)
+        KeyVaultName: $(KeyVaultName)
+        CMUConStringSecretName: $(CMUConStringSecretName)
+        WorkspacesResourceGroupName: $(WorkspacesResourceGroupName)
+        WorkspacesName: $(WorkspacesName)
+        
+################# MicroSite ##################
+  - ${{ if eq(parameters.RunMicroSite, true)}}:
+    - template: Pipeline/Templates/deploy-template-micro-jobs.yml@CloudManagement
+      parameters:
+        Stage: ${{parameters.Stage}}
+        ProjectName: 'PROSOFT-CloudManagement.Microsite'
+        AzureSubscription: ${{parameters.AzureSubscription}}
+        projectDirectory:  $(Build.SourcesDirectory)/$(CloudManagement.name)
+        RepoCheckoutName: 'CloudManagement'
+        ServiceLogAppServiceName: '$(ServiceLogPrivateAppServiceName)-api'
+        AppServiceName: $(MCSAppServiceName)
+        AppServicePlanName: $(MCSAppServiceName)-sp
+        appInsightName: '$(RegionCode)-SaaS-U4MCS-001-${{parameters.Stage}}-WEB'
+        ResourceGroup: $(MCSAppServiceName)
+        webAppSlot: $(webAppSlot)
+        AppServicePlanSku: $(AppServicePlanSku)
+        Location: $(Location)
+        AzureSubscriptionId: $(AzureSubscriptionId)
+        CMUAppServiceName: $(CMUPrivateAppServiceName)-api
+        Tags: $(Tags)
+        WorkspacesResourceGroupName: $(WorkspacesResourceGroupName)
+        WorkspacesName: $(WorkspacesName)
+################ Reference API ##################
+  - ${{ if eq(parameters.RunReferencePrivate, true)}}:
+    - template: Pipeline/Templates/deploy-template-jobs.yml@PrivateReferenceApi
+      parameters:
+        Stage: ${{parameters.Stage}}
+        ProjectName: 'PROSOFT-Private.ReferenceAPI'
+        AzureSubscription: ${{parameters.AzureSubscription}}
+        projectDirectory:  $(Build.SourcesDirectory)/$(PrivateReferenceApi.name)
+        RepoCheckoutName: 'PrivateReferenceApi'
+        AppServiceName: $(ReferencePrivateAppServiceName)
+        webAppSlot: $(webAppSlot)
+        AppServicePlanSku: $(AppServicePlanSku)
+        AppServicePlanName: $(ReferencePrivateAppServiceName)-sp
+        ResourceGroup: $(ReferencePrivateAppServiceName)
+        Location: $(Location)
+        AzureSubscriptionId: $(AzureSubscriptionId)
+        Tags: $(Tags)
+        appInsightName: '$(RegionCode)-SaaS-U4REF-001-${{parameters.Stage}}-WEB'
+        KeyVaultName: $(KeyVaultName)
+################# Private Employee API ##################
+  - ${{ if eq(parameters.RunEmployeePrivate, true)}}:
+    - template: Pipeline/Templates/deploy-template-jobs.yml@PrivateEmployeeApi
+      parameters:
+        Stage: ${{parameters.Stage}}
+        ProjectName: 'PROSOFT-Private.EmployeeAPI'
+        AzureSubscription: ${{parameters.AzureSubscription}}
+        projectDirectory:  $(Build.SourcesDirectory)/$(PrivateEmployeeApi.name)
+        RepoCheckoutName: 'PrivateEmployeeApi'
+        AppServiceName: '$(EmployeePrivateAppServiceName)-api'
+        webAppSlot: $(webAppSlot)
+        AppServicePlanSku: $(AppServicePlanSku)
+        AppServicePlanName: $(EmployeePrivateAppServiceName)-sp
+        ResourceGroup: $(EmployeePrivateAppServiceName)
+        CMUPrivateAppServiceName: '$(CMUPrivateAppServiceName)-api'
+        Location: $(Location)
+        AzureSubscriptionId: $(AzureSubscriptionId)
+        Tags: $(Tags)
+        appInsightName: '$(RegionCode)-SaaS-U4EMP-001-${{parameters.Stage}}-WEB'
+        KeyVaultName: $(KeyVaultName)
+        WorkspacesResourceGroupName: $(WorkspacesResourceGroupName)
+        WorkspacesName: $(WorkspacesName)
+################## Public EMPLOYEE API ##################
+  - ${{ if eq(parameters.RunEmployeePublic, true)}}:
+    - template: Pipeline/Templates/deploy-template-jobs.yml@PublicEmployeeApi
+      parameters:
+        Stage: ${{parameters.Stage}}
+        ProjectName: 'PROSOFT-Public.EmployeeAPI'
+        AzureSubscription: ${{parameters.AzureSubscription}}
+        projectDirectory:  $(Build.SourcesDirectory)/$(PublicEmployeeApi.name)
+        RepoCheckoutName: 'PublicEmployeeApi'
+        AppServiceName: '$(EmployeePublicAppServiceName)-api'
+        webAppSlot: $(webAppSlot)
+        AppServicePlanSku: $(AppServicePlanSku)
+        AppServicePlanName: $(EmployeePublicAppServiceName)-sp
+        ResourceGroup: $(EmployeePublicAppServiceName)
+        Location: $(Location)
+        PrivateEmployeeAppServiceName: '$(EmployeePrivateAppServiceName)-api'
+        CMUPrivateAppServiceName: '$(CMUPrivateAppServiceName)-api'
+        ServiceLogPrivateAppServiceName: '$(ServiceLogPrivateAppServiceName)-api'
+        ReferencePrivateAppServiceName: '$(ReferencePrivateAppServiceName)-api'
+        AzureSubscriptionId: $(AzureSubscriptionId)
+        Tags: $(Tags)
+        appInsightName: '$(RegionCode)-SaaS-U4EMP-public-001-${{parameters.Stage}}-WEB'
+        IdsClientSecretCMUPortal: $(IdsClientSecretCMUPortal)
+        KeyVaultName: $(KeyVaultName)
+        WorkspacesResourceGroupName: $(WorkspacesResourceGroupName)
+        WorkspacesName: $(WorkspacesName)
+################# Private CLAIM API ##################
+  - ${{ if eq(parameters.RunClaimPrivate, true)}}:
+    - template: Pipeline/Templates/deploy-template-jobs.yml@PrivateClaimApi
+      parameters:
+        Stage: ${{parameters.Stage}}
+        ProjectName: 'PROSOFT-Private.ClaimAPI'
+        AzureSubscription: ${{parameters.AzureSubscription}}
+        projectDirectory:  $(Build.SourcesDirectory)/$(PrivateClaimApi.name)
+        RepoCheckoutName: 'PrivateClaimApi'
+        AppServiceName: '$(ClaimPrivateAppServiceName)-api'
+        webAppSlot: $(webAppSlot)
+        AppServicePlanSku: $(AppServicePlanSku)
+        AppServicePlanName: $(ClaimPrivateAppServiceName)-sp
+        ResourceGroup: $(ClaimPrivateAppServiceName)
+        Location: $(Location)
+        AzureSubscriptionId: $(AzureSubscriptionId)
+        Tags: $(Tags)
+        appInsightName: '$(RegionCode)-SaaS-U4CLM-001-${{parameters.Stage}}-WEB'
+################# Public CLAIM API ##################
+  - ${{ if eq(parameters.RunClaimPublic, true)}}:
+    - template: Pipeline/Templates/deploy-template-jobs.yml@PublicClaimApi
+      parameters:
+        Stage: ${{parameters.Stage}}
+        ProjectName: 'PROSOFT-Public.ClaimAPI'
+        AzureSubscription: ${{parameters.AzureSubscription}}
+        projectDirectory:  $(Build.SourcesDirectory)/$(PublicClaimApi.name)
+        RepoCheckoutName: 'PublicClaimApi'
+        AppServiceName: '$(ClaimPublicAppServiceName)-api'
+        webAppSlot: $(webAppSlot)
+        AppServicePlanSku: $(AppServicePlanSku)
+        AppServicePlanName: $(ClaimPublicAppServiceName)-sp
+        ResourceGroup: $(ClaimPublicAppServiceName)
+        Location: $(Location)
+        ClaimPrivateAppServiceName: '$(ClaimPrivateAppServiceName)-api'
+        AzureSubscriptionId: $(AzureSubscriptionId)
+        Tags: $(Tags)
+        appInsightName: '$(RegionCode)-SaaS-U4CLM-public-001-${{parameters.Stage}}-WEB'
+        IdsClientSecretCMUPortal: $(IdsClientSecretCMUPortal)
+        KeyVaultName: $(KeyVaultName)
+################ Private LEAVE  API ##################
+  - ${{ if eq(parameters.RunLeavePrivate, true)}}:
+    - template: Pipeline/Templates/deploy-template-jobs.yml@PrivateLeaveApi
+      parameters:
+        Stage: ${{parameters.Stage}}
+        ProjectName: 'PROSOFT-Private.LeaveAPI'
+        AzureSubscription: ${{parameters.AzureSubscription}}
+        projectDirectory:  $(Build.SourcesDirectory)/$(PrivateLeaveApi.name)
+        RepoCheckoutName: 'PrivateLeaveApi'
+        AppServiceName: '$(LeavePrivateAppServiceName)-api'
+        webAppSlot: $(webAppSlot)
+        AppServicePlanSku: $(AppServicePlanSku)
+        AppServicePlanName: $(LeavePrivateAppServiceName)-sp
+        ResourceGroup: $(LeavePrivateAppServiceName)
+        Location: $(Location)
+        AzureSubscriptionId: $(AzureSubscriptionId)
+        Tags: $(Tags)
+        appInsightName: '$(RegionCode)-SaaS-U4LEV-001-${{parameters.Stage}}-WEB'
+        KeyVaultName: $(KeyVaultName)
+        WorkspacesResourceGroupName: $(WorkspacesResourceGroupName)
+        WorkspacesName: $(WorkspacesName)
+################ Public LEAVE  API ##################
+  - ${{ if eq(parameters.RunLeavePublic, true)}}:
+    - template: Pipeline/Templates/deploy-template-jobs.yml@PublicLeaveApi
+      parameters:
+        Stage: ${{parameters.Stage}}
+        ProjectName: 'PROSOFT-Public.LeaveAPI'
+        AzureSubscription: ${{parameters.AzureSubscription}}
+        projectDirectory:  $(Build.SourcesDirectory)/$(PublicLeaveApi.name)
+        RepoCheckoutName: 'PublicLeaveApi'
+        AppServiceName: '$(LeavePublicAppServiceName)-api'
+        webAppSlot: $(webAppSlot)
+        AppServicePlanSku: $(AppServicePlanSku)
+        AppServicePlanName: $(LeavePublicAppServiceName)-sp
+        ResourceGroup: $(LeavePublicAppServiceName)
+        LeavePrivateAppServiceName: '$(LeavePrivateAppServiceName)-api'
+        Location: $(Location)
+        AzureSubscriptionId: $(AzureSubscriptionId)
+        Tags: $(Tags)
+        appInsightName: '$(RegionCode)-SaaS-U4LEV-public-001-${{parameters.Stage}}-WEB'
+        IdsClientSecretCMUPortal: $(IdsClientSecretCMUPortal)
+        KeyVaultName: $(KeyVaultName)
+        WorkspacesResourceGroupName: $(WorkspacesResourceGroupName)
+        WorkspacesName: $(WorkspacesName)
+

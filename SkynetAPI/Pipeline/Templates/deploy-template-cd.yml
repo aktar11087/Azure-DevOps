@@ -1,0 +1,169 @@
+parameters:
+- name: Stage
+  type: string 
+- name: AzureSubscription
+  type: string
+  default: 'Microservices Lab'
+- name: projectName
+  type: string
+  default: 'Skynet.API'
+- name: projectDirectory
+  type: string
+  default: $(Build.SourcesDirectory)
+- name: RepoCheckoutName
+  type: string
+- name: AppServiceName                 
+  type: string
+- name: webAppSlot                     
+  type: string
+- name: AppServicePlanSku              
+  type: string
+- name: AppServicePlanName             
+  type: string
+- name: ResourceGroup                  
+  type: string
+- name: Location                       
+  type: string
+- name: AzureSubscriptionId                       
+  type: string
+- name: Tags                       
+  type: string
+- name: appInsightName                       
+  type: string
+- name: CMUPrivateAppServiceName              
+  type: string
+- name: KeyVaultName
+  type: string
+- name : WorkspacesResourceGroupName
+  type : string
+- name : WorkspacesName
+  type : string
+
+
+jobs:
+- deployment: '${{parameters.Stage}}_${{parameters.RepoCheckoutName}}_deployment'
+  displayName: '${{parameters.Stage}} ${{parameters.RepoCheckoutName}} deployment'
+  environment: 'Prosoft_${{parameters.RepoCheckoutName}}_${{parameters.Stage}}'
+  pool:
+    vmImage: 'windows-latest'
+  strategy:
+    runOnce:
+      deploy:
+        steps: 
+        - checkout: "${{parameters.RepoCheckoutName}}" 
+        - task: AzureResourceManagerTemplateDeployment@3
+          displayName: 'Deploy App Service Plan with Web App, App Insight and Slot'
+          inputs:
+            deploymentScope: 'Resource Group' 
+            azureResourceManagerConnection:  '${{parameters.AzureSubscription}}'
+            subscriptionId: ${{parameters.AzureSubscriptionId}}
+            action: 'Create Or Update Resource Group'
+            resourceGroupName: '${{parameters.ResourceGroup}}'
+            location: '${{parameters.Location}}'
+            templateLocation: 'Linked artifact'
+            csmFile: '$(Build.SourcesDirectory)/Pipeline/Infrastructure/infra.json' 
+            deploymentMode: 'Incremental'
+            overrideParameters:
+              -webAppName "${{parameters.AppServiceName}}"
+              -appSvcPlanName "${{parameters.AppServicePlanName}}"
+              -tags "${{parameters.Tags}}"
+              -appInsightName "${{parameters.appInsightName}}"
+              -webAppSlot "${{parameters.webAppSlot}}"
+              -AppServicePlanSku  "${{parameters.AppServicePlanSku}}"
+              -WorkspacesResourceGroupName "${{parameters.WorkspacesResourceGroupName}}"
+              -WorkspacesName "${{parameters.WorkspacesName}}"
+            deploymentOutputs: 'armOutputs'  
+
+        - task: AzurePowerShell@5
+          displayName: "Grant permissions to KeyVaults"
+          inputs:
+            azureSubscription: ${{parameters.AzureSubscription}}
+            ScriptType: 'InlineScript'
+            Inline: |
+              $var=ConvertFrom-Json '$(armOutputs)'
+              $value=$var.principalId.value 
+              Set-AzKeyVaultAccessPolicy -VaultName ${{parameters.KeyVaultName}} -ObjectId $value -PermissionsToSecrets Get -BypassObjectIdValidation
+            azurePowerShellVersion: 'LatestVersion'
+            pwsh: true
+
+        - task: AzureRmWebAppDeployment@4
+          displayName: 'Deploy To Slot'
+          inputs:
+            ConnectionType: 'AzureRM'
+            azureSubscription: '${{parameters.AzureSubscription}}'
+            ResourceGroupName: ${{parameters.ResourceGroup}}
+            appType: 'webApp'
+            deployToSlotOrASE: true
+            WebAppName: ${{parameters.AppServiceName}}
+            packageForLinux: '$(Pipeline.Workspace)/app${{ parameters.projectName }}/*.zip'
+            RemoveAdditionalFilesFlag: true
+            slotName: ${{parameters.webAppSlot}}
+
+        - task: AzureAppServiceManage@0
+          displayName: 'Swap Slot'
+          inputs:
+            azureSubscription:  '${{parameters.AzureSubscription}}'
+            WebAppName:  ${{parameters.AppServiceName}}
+            ResourceGroupName: ${{parameters.ResourceGroup}}
+            SourceSlot: ${{parameters.webAppSlot}}   
+            SwapWithProduction: true
+
+        - task: PowerShell@2
+          displayName: 'Set a SawpSlot Flag'
+          inputs:
+            targetType: 'inline'
+            script: | 
+                Write-Host "##vso[task.setvariable variable=SwapSlot;isOutput=true]yes"
+            pwsh: true
+            name: flagResult
+            
+        ## Reading configuration settings from file ##
+        - powershell: |
+            $appsettingsjson = Get-Content -Path '$(Build.SourcesDirectory)\Pipeline\Infrastructure\appsettings.${{parameters.Stage}}.json'
+            $json = $appsettingsjson | ConvertFrom-Json
+            $CMUAPIUrl = $json | where name -EQ 'CMUAPIUrl' 
+            $CMUAPIUrl.value = "https://${{parameters.CMUPrivateAppServiceName}}.azurewebsites.net/api/v1"
+            $KeyVaultUrl = $json | where name -EQ 'KeyVaultUrl'
+            $KeyVaultUrl.value = "https://${{parameters.KeyVaultName}}.vault.azure.net"
+            $appsettingsjson = $appsettingsjson -replace "`n","" -replace " ","" -replace "`r","" 
+            write-host $appsettingsjson
+            Write-Host "##vso[task.setvariable variable=varappSettings;]$appsettingsjson"
+          displayName: 'Reading app setting from file'
+          
+        ## Apply app configuration from file
+        - task: AzureAppServiceSettings@1
+          displayName: 'Azure API App Service Settings'
+          inputs:
+            azureSubscription: '${{parameters.AzureSubscription}}'
+            appName:   ${{parameters.AppServiceName}}
+            resourceGroupName:  ${{parameters.ResourceGroup}}
+            appSettings: |
+                  $(varappSettings)
+
+                  
+        - task: AzurePowerShell@5
+          displayName: 'Install extension for App Service'
+          inputs:
+            azureSubscription: ${{parameters.AzureSubscription}}
+            ScriptPath: '$(Build.SourcesDirectory)/Pipeline/Scripts/Install-NetCoreContrastAssessExtension.ps1'
+            ScriptArguments: >
+              -Service ${{parameters.AppServiceName}}
+              -ResourceGroup ${{parameters.ResourceGroup}}
+              -SubscriptionID ${{parameters.AzureSubscriptionId}}
+              -u4proVersion $(Build.BuildId)
+              -AppSettings @{"CONTRAST__API__API_KEY"="$(contrast_api_key)";"CONTRAST__API__SERVICE_KEY"="$(contrast_service_key)";"CONTRAST__API__URL"="$(contrast_url)";"CONTRAST__API__USER_NAME"="$(contrast_user_name)";"CONTRAST__APPLICATION__NAME"="${{ parameters.ProjectName }}"}
+            azurePowerShellVersion: 'LatestVersion'
+            pwsh: true
+
+- job: '${{parameters.Stage}}_${{parameters.RepoCheckoutName}}_rollback'
+  dependsOn: '${{parameters.Stage}}_${{parameters.RepoCheckoutName}}_deployment' 
+  condition: and(failed(), eq(dependencies.${{parameters.Stage}}_${{parameters.RepoCheckoutName}}_deployment.outputs['flagResult.SwapSlot'], 'yes'))
+  steps:
+  - task: AzureAppServiceManage@0
+    displayName: 'Swap Slot'
+    inputs:
+      azureSubscription:  '${{parameters.AzureSubscription}}'
+      WebAppName:  ${{parameters.AppServiceName}}
+      ResourceGroupName:  ${{parameters.ResourceGroup}}
+      SourceSlot: ${{parameters.webAppSlot}}   
+      SwapWithProduction: true

@@ -1,0 +1,178 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "webAppName": {
+      "type": "string",
+      "metadata": {
+        "description": "The Web App name."
+      }
+    },
+    "appInsightName": {
+      "type": "string",
+      "metadata": {
+        "description": "The App Insight name schema policy."
+      }
+    },
+    "tags": {
+      "type": "object",
+      "defaultValue": {
+        "U4COSTID": "prosoft-test"
+      }
+    },
+    "appSvcPlanName": {
+      "type": "string",
+      "metadata": {
+        "description": "The Service Plan name."
+      }
+    },
+    "AppServicePlanSku": {
+      "type": "string",
+      "defaultValue": "S1",
+      "metadata": {
+        "description": "The SKU of App Service Plan."
+      }
+    },
+    "webAppSlot": {
+      "type": "string",
+      "defaultValue": "autotest",
+      "metadata": {
+        "description": "The Web App Slot name."
+      }
+    },
+    "WEBSITE_TIME_ZONE": {
+      "type": "string",
+      "defaultValue": "Singapore Standard Time",
+      "metadata": {
+        "description": "The name corresponding to the performance level for edition."
+      }
+    },
+    "WorkspacesResourceGroupName": {
+      "type": "string",
+      "defaultValue": "monitoring",
+      "metadata": {
+        "description": "WorkspacesResourceGroupName"
+      }
+    },
+    "WorkspacesName": {
+      "type": "string",
+      "defaultValue": "Lab-LogWorkspace",
+      "metadata": {
+        "description": "WorkspacesName"
+      }
+    }
+
+  },
+
+  "resources": [
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "sku": {
+        "Tier": "[first(skip(split(parameters('AppServicePlanSku'), ' '), 1))]",
+        "Name": "[first(split(parameters('AppServicePlanSku'), ' '))]"
+      },
+      "name": "[parameters('appSvcPlanName')]",
+      "apiVersion": "2018-02-01",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "name": "[parameters('appSvcPlanName')]",
+        "workerSizeId": "0",
+        "reserved": false,
+        "numberOfWorkers": "1",
+        "hostingEnvironment": ""
+      },
+      "tags": "[parameters('tags')]"
+    },
+    {
+      "type": "Microsoft.Insights/components",
+      "name": "[parameters('appInsightName')]",
+      "apiVersion": "2020-02-02",
+      "location": "[resourceGroup().location]",
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web",
+        "applicationId": "[parameters('webAppName')]",
+        "Request_Source": "rest",
+        "WorkspaceResourceId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourcegroups/', parameters('workspacesResourceGroupName'), '/providers/microsoft.operationalinsights/workspaces/', parameters('workspacesName'))]"
+
+      },
+      "tags": "[parameters('tags')]"
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "name": "[parameters('webAppName')]",
+      "apiVersion": "2018-02-01",
+      "location": "[resourceGroup().location]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "tags": "[parameters('tags')]",
+      "resources": [
+        {
+          "type": "siteextensions",
+          "name": "Microsoft.ApplicationInsights.AzureWebSites",
+          "apiVersion": "2018-11-01",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/Sites', parameters('webAppName'))]"
+          ],
+          "properties": {}
+        }
+      ],
+      "properties": {
+        "name": "[parameters('webAppName')]",
+        "serverFarmId": "[concat('/subscriptions/', subscription().subscriptionId,'/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Web/serverfarms/', parameters('appSvcPlanName'))]",
+        "hostingEnvironment": "",
+        "siteConfig": {
+          "alwaysOn": true,
+          "httpsOnly": true,
+          "minTlsVersion": "1.2",
+          "appSettings": [
+            {
+              "name": "WEBSITE_TIME_ZONE",
+              "value": "[parameters('WEBSITE_TIME_ZONE')]",
+              "slotSetting": false
+            }
+
+          ]
+        }
+      },
+      "dependsOn": [
+        "[concat('Microsoft.Web/serverfarms/', parameters('appSvcPlanName'))]",
+        "[resourceId('Microsoft.insights/components/', parameters('appInsightName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/sites/slots",
+      "apiVersion": "2018-11-01",
+      "name": "[concat(parameters('webAppName'), '/' ,parameters('webAppSlot'))]",
+      "location": "[resourceGroup().location]",
+      "tags": "[parameters('tags')]",
+      "kind": "web",
+      "properties": {
+        "siteConfig": {
+          "appSettings": [
+            {
+              "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+              "value": "[reference(resourceId('microsoft.insights/components/', parameters('appInsightName')), '2015-05-01').InstrumentationKey]"
+            }
+          ]
+        },
+        "enabled": true,
+        "serverFarmId": "[concat('/subscriptions/', subscription().subscriptionId,'/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Web/serverfarms/', parameters('appSvcPlanName'))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('webAppName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "ArmOutput": {
+      "type": "string",
+      "value": "[concat('https://',parameters('webAppName'),'.azurewebsites.net')]"
+    },
+    "principalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Web/sites', parameters('webAppName')), '2018-02-01', 'Full').identity.principalId]"
+    }
+  }
+}

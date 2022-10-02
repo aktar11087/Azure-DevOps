@@ -1,0 +1,244 @@
+parameters:
+- name: Stage
+  type: string 
+- name: AzureSubscription
+  type: string
+  default: 'Microservices Lab'
+- name: projectName
+  type: string
+  default: 'RawflameManagement.API'
+- name: projectDirectory
+  type: string
+  default: $(Build.SourcesDirectory)
+- name: RepoCheckoutName
+  type: string
+- name: ServiceLogAppServiceName
+  type: string
+- name: appInsightName               
+  type: string
+- name: AppServiceName
+  type: string
+- name: AppServicePlanName
+  type: string
+- name: webAppSlot
+  type: string
+- name: KeyVaultName
+  type: string
+- name: AppServicePlanSku
+  type: string
+- name: Location
+  type: string
+- name: ResourceGroup
+  type: string
+- name: DatabaseServerName
+  type: string
+- name: DatabaseName
+  type: string
+- name: DatabaseEdition
+  type: string
+- name: DatabaseSku
+  type: string
+- name: AzureSubscriptionId                       
+  type: string
+- name: Tags                       
+  type: string
+- name: DbSecretUser
+  type: string
+- name: DbSecretPassword
+  type: string
+- name: IdsClientSecretCMUPortal
+  type: string
+- name: agentImage
+  type: string
+  default: "windows-latest"
+- name: pathToPublish
+  type: string
+  default: $(Build.ArtifactStagingDirectory)
+- name: CMUConStringSecretName
+  type: string
+- name : WorkspacesResourceGroupName
+  type : string
+- name : WorkspacesName
+  type : string
+
+jobs:
+- deployment: '${{parameters.Stage}}_${{parameters.RepoCheckoutName}}_deployment'
+  displayName: '${{parameters.Stage}} ${{parameters.RepoCheckoutName}} deployment'
+  pool:
+    vmImage: 'windows-latest'
+  environment: 'Rawflame_Management_${{parameters.Stage}}'
+  strategy:
+    runOnce:
+      deploy:
+        steps:
+        - checkout: "${{parameters.RepoCheckoutName}}" 
+
+        - task: AzurePowerShell@5
+          displayName: "Obtain DB Cred"
+          inputs:
+            azureSubscription: ${{parameters.AzureSubscription}}
+            ScriptType: 'InlineScript'
+            Inline: |
+              $IdsClientSecretCMU = Get-AzKeyVaultSecret -VaultName "${{parameters.KeyVaultName}}" -Name "${{parameters.IdsClientSecretCMUPortal}}" -AsPlainText
+              $secretAppId = Get-AzKeyVaultSecret -VaultName "${{parameters.KeyVaultName}}" -Name "${{parameters.DbSecretUser}}" -AsPlainText
+              $secretPassword = Get-AzKeyVaultSecret -VaultName "${{parameters.KeyVaultName}}" -Name "${{parameters.DbSecretPassword}}" -AsPlainText
+              Write-Host "##vso[task.setvariable variable=DbSecretUser;]$secretAppId"
+              Write-Host "##vso[task.setvariable variable=IdsClientSecretCMUPortal;]$IdsClientSecretCMU"
+              Write-Host "##vso[task.setvariable variable=DbSecretPassword;issecret=true]$secretPassword"
+            azurePowerShellVersion: 'LatestVersion'
+            pwsh: true
+
+        - task: AzureResourceManagerTemplateDeployment@3
+          displayName: 'Deploy DB API Insights'
+          inputs:
+            deploymentScope: 'Resource Group' 
+            azureResourceManagerConnection:  '${{parameters.AzureSubscription}}'
+            subscriptionId: ${{parameters.AzureSubscriptionId}}
+            action: 'Create Or Update Resource Group'
+            resourceGroupName: "${{parameters.ResourceGroup}}"
+            location: '${{parameters.Location}}'
+            templateLocation: 'Linked artifact'
+            csmFile: '$(Build.SourcesDirectory)/Pipeline/Infrastructure/infra.json' 
+            overrideParameters:
+              -webAppName "${{parameters.AppServiceName}}"
+              -appSvcPlanName "${{parameters.AppServicePlanName}}"
+              -appInsightName "${{parameters.appInsightName}}"
+              -AppServicePlanSku "${{parameters.AppServicePlanSku}}"
+              -webAppSlot  "${{parameters.webAppSlot}}"
+              -tags "${{parameters.Tags}}"
+              -DatabaseServerName "${{parameters.DatabaseServerName}}"
+              -DatabaseServerAdminLogin "$(DbSecretUser)"
+              -DatabaseServerAdminLoginPassword "$(DbSecretPassword)"
+              -DatabaseName  "${{parameters.DatabaseName}}"
+              -DatabaseEdition "${{parameters.DatabaseEdition}}"
+              -DatabaseSku "${{parameters.DatabaseSku}}"
+              -WorkspacesResourceGroupName "${{parameters.WorkspacesResourceGroupName}}"
+              -WorkspacesName "${{parameters.WorkspacesName}}"
+            deploymentMode: 'Incremental'
+            deploymentOutputs: 'armOutputs'
+            
+        - task: AzurePowerShell@5
+          displayName: "Grant permissions to KeyVaults"
+          inputs:
+            azureSubscription: ${{parameters.AzureSubscription}}
+            ScriptType: 'InlineScript'
+            Inline: |
+              $var = ConvertFrom-Json '$(armOutputs)'
+              $value = $var.principalId.value 
+              Set-AzKeyVaultAccessPolicy -VaultName ${{parameters.KeyVaultName}} -ObjectId $value -PermissionsToSecrets Get -BypassObjectIdValidation
+            azurePowerShellVersion: 'LatestVersion'
+            pwsh: true
+
+        - task: AzurePowerShell@5
+          displayName: "Set a Secret Connection String"
+          inputs:
+            azureSubscription: ${{parameters.AzureSubscription}}
+            ScriptType: 'InlineScript'
+            Inline: |
+              $var = ConvertFrom-Json '$(armOutputs)'
+              $value =  ConvertTo-SecureString -String $var.DatabaseConnectionString.value -AsPlainText -Force
+              Set-AzKeyVaultSecret -VaultName ${{parameters.KeyVaultName}}  -Name ${{parameters.CMUConStringSecretName}} -SecretValue $value
+            azurePowerShellVersion: 'LatestVersion'
+            pwsh: true
+
+        ## Run script to structure database
+        - task: SqlAzureDacpacDeployment@1
+          displayName: Database Script
+          inputs:
+            azureSubscription: '${{parameters.AzureSubscription}}'
+            AuthenticationType: 'server'
+            ServerName: "${{parameters.DatabaseServerName}}.database.windows.net"
+            DatabaseName: "${{parameters.DatabaseName}}"
+            SqlUsername: '$(DbSecretUser)'
+            SqlPassword: '$(DbSecretPassword)'
+            deployType: 'SqlTask'
+            SqlFile: '$(Build.SourcesDirectory)/Pipeline/Scripts/CMUDatabaseScript.sql'
+            IpDetectionMethod: 'AutoDetect'
+
+################### Deploy API task #########################
+        - task: AzureRmWebAppDeployment@4
+          displayName: 'Deploy to slot'
+          inputs:
+            ConnectionType: 'AzureRM'
+            azureSubscription: '${{parameters.AzureSubscription}}'
+            appType: 'webApp'
+            ResourceGroupName: "${{parameters.ResourceGroup}}"
+            WebAppName: "${{parameters.AppServiceName}}"
+            deployToSlotOrASE: true
+            packageForLinux: '$(Pipeline.Workspace)/api${{ parameters.projectName }}/*.zip'
+            RemoveAdditionalFilesFlag: true
+            slotName: "${{parameters.webAppSlot}}"
+
+        - task: AzureAppServiceManage@0
+          displayName: 'Swap Slot'
+          inputs:
+            azureSubscription:  '${{parameters.AzureSubscription}}'
+            WebAppName:  "${{parameters.AppServiceName}}"
+            ResourceGroupName:  "${{parameters.ResourceGroup}}"
+            SourceSlot: "${{parameters.webAppSlot}}"
+            SwapWithProduction: true
+
+        - task: PowerShell@2
+          displayName: 'Set a SawpSlot Flag'
+          inputs:
+            targetType: 'inline'
+            script: | 
+                Write-Host "##vso[task.setvariable variable=SwapSlot;isOutput=true]yes"
+            pwsh: true
+            name: flagResult
+
+        ## Reading API configuration settings from file ##
+        - powershell: |
+            $filecontent= Get-Content -Path '$(Build.SourcesDirectory)\Pipeline\Infrastructure\appsettingsAPI.${{parameters.Stage}}.json'
+            $json = $filecontent | ConvertFrom-Json 
+            $PSServiceLogAPISettings__APIUrl = $json | where name -EQ 'PSServiceLogAPISettings__APIUrl' 
+            $PSServiceLogAPISettings__APIUrl.value = "https://${{parameters.ServiceLogAppServiceName}}.azurewebsites.net/api/v1"
+            $U4IDSAPISettings__ClientSecret = $json | where name -EQ 'U4IDSAPISettings__ClientSecret' 
+            $U4IDSAPISettings__ClientSecret.value = "$(IdsClientSecretCMUPortal)"
+            $KeyVaultUrl = $json | where name -EQ 'KeyVaultUrl'
+            $KeyVaultUrl.value = "https://${{parameters.KeyVaultName}}.vault.azure.net"
+            $filecontent = $json|ConvertTo-Json
+            $filecontent = $filecontent -replace "`n","" -replace " ","" -replace "`r","" 
+            write-host $filecontent
+            Write-Host "##vso[task.setvariable variable=varappSettingsAPI;]$filecontent" 
+          displayName: 'Reading API app setting from file'
+
+        ## Apply app configuration from file
+        - task: AzureAppServiceSettings@1
+          displayName: 'Azure API App Service Settings'
+          inputs:
+            azureSubscription: '${{parameters.AzureSubscription}}'
+            appName:   '${{parameters.AppServiceName}}'
+            resourceGroupName:  '${{parameters.ResourceGroup}}'
+            appSettings: |
+                  $(varappSettingsAPI)
+
+          #TODO: AT THE END write a script to configure front door
+
+          ## Install extension and add App configuration
+        - task: AzurePowerShell@5
+          displayName: 'Install extension for App Service'
+          inputs:
+            azureSubscription: ${{parameters.AzureSubscription}}
+            ScriptPath: '$(Build.SourcesDirectory)/Pipeline/Scripts/Install-NetCoreContrastAssessExtension.ps1'
+            ScriptArguments: >
+              -Service ${{parameters.AppServiceName}}
+              -ResourceGroup ${{parameters.ResourceGroup}}
+              -SubscriptionID ${{parameters.AzureSubscriptionId}}
+              -u4proVersion $(Build.BuildId)
+              -AppSettings @{"CONTRAST__API__API_KEY"="$(contrast_api_key)";"CONTRAST__API__SERVICE_KEY"="$(contrast_service_key)";"CONTRAST__API__URL"="$(contrast_url)";"CONTRAST__API__USER_NAME"="$(contrast_user_name)";"CONTRAST__APPLICATION__NAME"="${{ parameters.projectName }}"}
+            azurePowerShellVersion: 'LatestVersion'
+            pwsh: true
+
+- job: '${{parameters.Stage}}_${{parameters.RepoCheckoutName}}_rollback'
+  dependsOn: '${{parameters.Stage}}_${{parameters.RepoCheckoutName}}_deployment' 
+  condition: and(failed(), eq(dependencies.${{parameters.Stage}}_${{parameters.RepoCheckoutName}}_deployment.outputs['flagResult.SwapSlot'], 'yes'))
+  steps:
+  - task: AzureAppServiceManage@0
+    displayName: 'Swap Slot'
+    inputs:
+      azureSubscription:  '${{parameters.AzureSubscription}}'
+      WebAppName:  ${{parameters.AppServiceName}}
+      ResourceGroupName:  ${{parameters.ResourceGroup}}
+      SourceSlot: ${{parameters.webAppSlot}}   
+      SwapWithProduction: true

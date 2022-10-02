@@ -1,0 +1,128 @@
+parameters:
+- name: RunCMU
+  type: boolean
+  default: false 
+- name: RunMicroSite
+  type: boolean
+  default: false 
+  
+- name: RunReferencePrivate
+  type: boolean
+  default: false 
+- name: RunServiceLogPrivate
+  type: boolean
+  default: false 
+- name: RunClaimPublic
+  type: boolean
+  default: false 
+- name: RunClaimPrivate
+  type: boolean
+  default: false 
+- name: RunLeavePublic
+  type: boolean
+  default: false 
+- name: RunLeavePrivate
+  type: boolean
+  default: false 
+- name: RunEmployeePublic
+  type: boolean
+  default: false 
+- name: RunEmployeePrivate
+  type: boolean
+  default: false 
+- name: EnableUnitTest
+  type: boolean
+  default: true 
+
+stages:
+- stage: 'Build_Stage' #Stage name cannot have spaces
+  displayName: 'Build' #Name displayed when viewing in Azure DevOps
+  jobs:
+
+################# CLOUND MANAGEMENT ##################
+  - ${{ if eq(parameters.RunCMU, true)}}:
+    - template: Pipeline/Templates/build-template-jobs.yml@CloudManagement
+      parameters:
+        projectName: 'PROSOFT-CloudManagement.API'
+        projectDirectory: $(Build.SourcesDirectory)/$(CloudManagement.name)
+        RepoCheckoutName: 'CloudManagement' 
+        hasTest: ${{parameters.EnableUnitTest}} 
+##################### Micro Site #######################
+  - ${{ if eq(parameters.RunMicroSite, true)}}:
+    - template: Pipeline/Templates/build-template-micro-jobs.yml@CloudManagement
+      parameters:
+        projectName: 'PROSOFT-CloudManagement.Microsite'
+        projectDirectory: $(Build.SourcesDirectory)/$(CloudManagement.name)
+        RepoCheckoutName: 'CloudManagement' 
+################# Private CLAIM API ##################
+  - ${{ if eq(parameters.RunClaimPrivate, true)}}:
+    - template: Pipeline/Templates/build-template-jobs.yml@PrivateClaimApi
+      parameters:
+        projectName: 'PROSOFT-Private.ClaimAPI'
+        projectDirectory: $(Build.SourcesDirectory)/$(PrivateClaimApi.name)
+        buildSolution: '**/ClaimAPI.csproj'
+        RepoCheckoutName: 'PrivateClaimApi'
+################# Public CLAIM API ##################
+  - ${{ if eq(parameters.RunClaimPublic, true)}}:
+    - template: Pipeline/Templates/build-template-jobs.yml@PublicClaimApi
+      parameters:
+        projectName: 'PROSOFT-Public.ClaimAPI'
+        projectDirectory: $(Build.SourcesDirectory)/$(PublicClaimApi.name)
+        buildSolution: '**/ClaimAPI.csproj'
+        RepoCheckoutName: 'PublicClaimApi'
+
+################ Private LEAVE  API ##################
+  - ${{ if eq(parameters.RunLeavePrivate, true)}}:
+    - template: Pipeline/Templates/build-template-jobs.yml@PrivateLeaveApi
+      parameters:
+        projectName: 'PROSOFT-Private.LeaveAPI'
+        projectDirectory: $(Build.SourcesDirectory)/$(PrivateLeaveApi.name)
+        buildSolution: '**/LeaveAPI.csproj'
+        RepoCheckoutName: 'PrivateLeaveApi'
+        hasTest: ${{parameters.EnableUnitTest}}
+################ Public LEAVE  API ##################
+  - ${{ if eq(parameters.RunLeavePublic, true)}}:
+    - template: Pipeline/Templates/build-template-jobs.yml@PublicLeaveApi
+      parameters:
+        projectName: 'PROSOFT-Public.LeaveAPI'
+        projectDirectory: $(Build.SourcesDirectory)/$(PublicLeaveApi.name)
+        buildSolution: '**/LeaveAPI.csproj'
+        RepoCheckoutName: 'PublicLeaveApi'
+################# Private Employee API ##################
+  - ${{ if eq(parameters.RunEmployeePrivate, true)}}:
+    - template: Pipeline/Templates/build-template-jobs.yml@PrivateEmployeeApi
+      parameters:
+        projectName: 'PROSOFT-Private.EmployeeAPI'
+        projectDirectory: $(Build.SourcesDirectory)/$(PrivateEmployeeApi.name)
+        buildSolution: '**/EmployeeAPI.csproj'
+        RepoCheckoutName: 'PrivateEmployeeApi'
+        hasTest: ${{parameters.EnableUnitTest}}
+################## Public EMPLOYEE API ##################
+  - ${{ if eq(parameters.RunEmployeePublic, true)}}:
+    - template: Pipeline/Templates/build-template-jobs.yml@PublicEmployeeApi
+      parameters:
+        projectName: 'PROSOFT-Public.EmployeeAPI'
+        projectDirectory: $(Build.SourcesDirectory)/$(PublicEmployeeApi.name)
+        buildSolution: '**/EmployeeAPI.csproj'
+        RepoCheckoutName: 'PublicEmployeeApi'
+        hasTest: true
+
+################ Reference API ##################
+  - ${{ if eq(parameters.RunReferencePrivate, true)}}:
+    - template: Pipeline/Templates/build-template-jobs.yml@PrivateReferenceApi
+      parameters:
+        projectName: 'PROSOFT-Private.ReferenceAPI'
+        projectDirectory: $(Build.SourcesDirectory)/$(PrivateReferenceApi.name)
+        buildSolution: '**/ReferenceAPI.csproj'
+        RepoCheckoutName: 'PrivateReferenceApi'
+        hasTest: true
+
+############### ServiceLog ##################
+  - ${{ if eq(parameters.RunServiceLogPrivate, true)}}:
+    - template: Pipeline/Templates/build-template-jobs.yml@ServiceLog
+      parameters:
+        projectName: 'PROSOFT-ServiceLog.API'
+        projectDirectory: $(Build.SourcesDirectory)/$(ServiceLog.name)
+        buildSolution: '**/ServiceLog.WebAPI.csproj'
+        RepoCheckoutName: 'ServiceLog'
+        hasTest: ${{parameters.EnableUnitTest}}

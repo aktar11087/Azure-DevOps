@@ -1,0 +1,62 @@
+#Trigger builds only on the master branch
+#Add additional options for more branches to target
+trigger: none 
+#Create a unique name for the build based on your project requirements
+#BuildID is the unique ID for the build
+name: $(Year:yyyy).$(Month).$(DayOfMonth)$(rev:.r)
+
+parameters:
+  - name: Run_SkynetAPI
+    type: boolean
+    default: false
+    displayName: 'Run Skynet API'
+
+  - name: Run_Rawflame_Management
+    type: boolean
+    default: false
+    displayName: 'Run Rawflame Management'
+
+
+resources:
+  repositories:
+  - repository: TestAutomation
+    type: git
+    name: ERP/ERP.TestAutomation
+    ref: 'dev'
+
+  - repository: SkynetApi
+    type: git
+    name: Skynet.API
+    ref: 'main'
+  - repository: RMU
+    type: git
+    name: Rawflame.Management
+    ref: 'main'
+
+variables:
+- group: SonarQube
+- group: WhiteSource
+- name: system.debug
+  value: true #Setting debug to true will add extra output to the logs but can be useful while trying to determine full reason for failures
+  
+- name: SkynetApi.name
+  value : $[ resources.repositories['SkynetApi'].name ]
+
+- name: RMU.name
+  value : $[ resources.repositories['RMU'].name ]
+
+
+stages:
+  - template: Templates/build-template.yml
+    parameters:
+      RunSkynet: ${{parameters.Run_SkynetAPI}}
+      RunRMU: ${{parameters.Run_Rawflame_Management}}
+      EnableUnitTest: true
+
+  - template: Templates/deploy-template.yml 
+    parameters:
+      Stage: 'Lab'
+      Dependency: 'Build_Stage'
+      AzureSubscription: 'saas-global-operations-new-lab'
+      RunSkynet: ${{parameters.Run_SkynetAPI}}
+      RunRMU: ${{parameters.Run_Rawflame_Management}}

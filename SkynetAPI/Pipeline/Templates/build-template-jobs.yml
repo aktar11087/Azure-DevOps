@@ -1,0 +1,141 @@
+parameters:
+- name: branchName
+  type: string
+  default: 'main'
+- name: projectName
+  type: string
+  default: 'PROSOFT-Private.EmployeeAPI'
+- name: projectDirectory
+  type: string
+  default: $(Build.SourcesDirectory)\$(Build.Repository.Name)
+- name: pathToPublish
+  type: string
+  default: $(Build.ArtifactStagingDirectory)
+- name: buildSolution
+  type: string
+  default: '**/*.sln'
+- name: buildPlatform
+  type: string
+  default: AnyCPU
+- name: buildConfiguration
+  type: string
+  default: Release
+- name: agentImage
+  type: string
+  default: "windows-latest"
+- name: dotnetVersion
+  type: string
+  default: '3.x'
+- name: hasTest
+  type: boolean
+  default: true
+- name: beforeBuildSteps # the name of the parameter is buildSteps
+  type: stepList # data type is StepList
+  default: [] # default value of buildSteps
+- name: afterBuildSteps # the name of the parameter is buildSteps
+  type: stepList # data type is StepList
+  default: [] # default value of buildSteps
+- name: RepoCheckoutName
+  type: string
+
+jobs:
+- job: 'Build_${{parameters.RepoCheckoutName}}_Job' #Job name cannot have spaces
+  displayName: 'App ${{parameters.RepoCheckoutName}} Build' #Name displayed when viewing in Azure DevOps
+  pool:
+    vmImage: ${{ parameters.agentImage }} #See available agent images: https://docs.microsoft.com/en-us/azure/devops/pipelines/agents/hosted?view=azure-devops#use-a-microsoft-hosted-agent
+  steps:
+  - checkout: "${{parameters.RepoCheckoutName}}"
+  - task: UseDotNet@2
+    displayName: 'Install .NET Core SDK'
+    inputs:
+      version: ${{ parameters.dotnetVersion }}
+      performMultiLevelLookup: true
+  - task: DownloadPackage@1
+    inputs:
+      packageType: 'nuget'
+      feed: '/374a4352-08fa-4511-b5de-c90ac180f43d'
+      definition: 'PROSOFT.HRMS21NET.Common'
+      extract: true
+      version: 'latest'
+      downloadPath: '$(System.ArtifactsDirectory)' #/lib/net462
+  - task: DownloadPackage@1
+    inputs:
+      packageType: 'nuget'
+      feed: '/374a4352-08fa-4511-b5de-c90ac180f43d'
+      definition: 'PROSOFT.HRMS21NET.Messages'
+      extract: true
+      version: 'latest'
+      downloadPath: '$(System.ArtifactsDirectory)' #/lib/net462
+  - task: DownloadPackage@1
+    inputs:
+      packageType: 'nuget'
+      feed: '/374a4352-08fa-4511-b5de-c90ac180f43d'
+      definition: 'PROSOFT.PSLib'
+      extract: true
+      version: 'latest'
+      downloadPath: '$(System.ArtifactsDirectory)' #/lib/net462
+      
+  - task: PowerShell@2
+    displayName: Move Artifact to HRMS21NETWeb\HRMS21NET
+    inputs:
+      targetType: inline
+      script: |
+        dir $(System.ArtifactsDirectory)/lib/net462
+        New-Item -Path "$(Build.SourcesDirectory)" -Name "References" -ItemType "directory"
+        New-Item -Path "$(Build.SourcesDirectory)/References" -Name "HRMS21NETWeb" -ItemType "directory"
+        New-Item -Path "$(Build.SourcesDirectory)/References/HRMS21NETWeb" -Name "HRMS21NET" -ItemType "directory"
+
+        Move-Item -Path $(System.ArtifactsDirectory)/lib/net462/*.dll -Destination $(Build.SourcesDirectory)/References/HRMS21NETWeb/HRMS21NET
+      
+        dir $(Build.SourcesDirectory)/References/HRMS21NETWeb/HRMS21NET
+
+  - task: CmdLine@2
+    displayName: Resolve O Drive Assembly References
+    inputs:
+      script: 'SUBST O: $(Build.SourcesDirectory)/References'
+
+  - template: Templates/Tools/SonarQubeMsBuildStart.yml@TestAutomation
+    parameters:
+      projectName: ${{ parameters.projectName }}
+      branchName: ${{ parameters.branchName }}
+      workingDirectory: '${{ parameters.projectDirectory }}'
+
+  - task: DotNetCoreCLI@2
+    displayName: Publish App
+    inputs:
+      command: publish  #The publish command does a restore, build and creates a zip file so no need to add extra steps
+      publishWebProjects: false
+      zipAfterPublish: true
+      projects: ${{ parameters.buildSolution }}
+      arguments: '--configuration ${{ parameters.buildConfiguration }} --output ${{ parameters.pathToPublish }}'
+
+  - template: Templates/Tools/SonarQubeMsBuildEnd.yml@TestAutomation
+    parameters:
+      branchName: ${{ parameters.branchName }}
+  - task: DotNetCoreCLI@2
+    enabled: ${{ parameters.hasTest}}
+    displayName: Test
+    inputs:
+      command: test #Don't forget to test!
+      projects: '**/*.Tests.csproj'
+      arguments: '--configuration Release'
+
+  - powershell: |
+      Remove-Item -Path '$(System.ArtifactsDirectory)\*' -Exclude *.zip -Recurse -Force
+    displayName: Clean artifact directory
+    
+  - task: PublishPipelineArtifact@1
+    displayName: 'Publish Artifact'
+    inputs:
+      targetPath: '${{ parameters.pathToPublish }}'
+      artifactName: 'app${{ parameters.projectName }}'
+
+  - ${{ if and(ne( variables['Build.Reason'], 'PullRequest' ), in(variables['Build.SourceBranchName'], 'dev','main','master') ) }}:
+    - template: Templates/Tools/whitesourceScanSteps.yml@TestAutomation
+      parameters:
+        wsConfigFile: 'whiteSource-file.config'
+        artifactsPath: ${{ parameters.pathToPublish }}
+        pullTemplateRepo: true
+        productName: 'Unit4 PROSOFT-$(Build.SourceBranchName)'
+        projectName: ${{ parameters.projectName }}
+        userKey: $(userKey-PROSOFT)

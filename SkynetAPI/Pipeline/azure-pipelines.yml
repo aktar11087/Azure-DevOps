@@ -1,0 +1,77 @@
+resources:
+  repositories:
+  - repository: TestAutomation
+    type: git
+    name: ERP/ERP.TestAutomation
+    ref: 'dev'
+
+
+#Trigger builds only on the master branch
+#Add additional options for more branches to target
+trigger:
+  branches:
+    include:
+    - main
+  paths:
+    exclude:
+      - Pipeline/*
+
+#Create a unique name for the build based on your project requirements
+#BuildID is the unique ID for the build
+name: $(Year:yy).$(Month).$(DayOfMonth)$(rev:.r)
+name: $(Date:yyyyMMdd).$(Rev:rr)
+name: $(TeamProject)_$(Build.DefinitionName)_$(SourceBranchName)_$(Date:yyyyMMdd)$(Rev:.r)
+
+variables:
+- group: SonarQube
+- group: WhiteSource
+- name: system.debug
+  value: true #Setting debug to true will add extra output to the logs but can be useful while trying to determine full reason for failures
+- name: ProjectName
+  value: 'SkynetAPI'
+- name: ProjectDirectory
+  value: $(Build.SourcesDirectory)\$(Build.Repository.Name)
+- name: BuildProject
+  value: '**/SkynetAPI.csproj'
+- name: AzureSubscription
+  value: 'RD Skynet - Dev'
+- name: AppServiceName
+  value: 'skynetapidev'
+
+    
+stages:
+- template: Templates/build-template.yml
+  parameters:
+    projectName: $(ProjectName)
+    projectDirectory: $(ProjectDirectory)
+    buildSolution: $(BuildProject)
+- stage: 'Dev_Deployment'
+  displayName: Dev Deployment
+  dependsOn: ['Build_Stage']
+  jobs:
+  - deployment: Dev_Deployment
+    displayName: Dev Deployment
+    environment: Dev
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: 'app'
+          - task: AzureRmWebAppDeployment@4
+            displayName: 'Azure App Service Deploy'
+            inputs:
+              ConnectionType: 'AzureRM'
+              azureSubscription: $(AzureSubscription)
+              appType: 'webApp'
+              WebAppName: $(AppServiceName)
+              packageForLinux: '$(Pipeline.Workspace)/app/*.zip'
+              RemoveAdditionalFilesFlag: true
+              
+- template: Templates/installContrastAssess.yml
+  parameters:
+    projectName: $(ProjectName)
+    appServiceName: $(AppServiceName)
+    resourceGroup: PSSDev
+    azureSubscription: $(AzureSubscription)
+    subscriptionID: 245bac96-bc23-47e7-b08d-b4735997896m

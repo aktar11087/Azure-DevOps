@@ -1,0 +1,40 @@
+parameters:
+- name: projectName
+  type: string
+  default: 'ProjectName'
+- name: projectDirectory
+  type: string
+  default: $(Build.SourcesDirectory)
+- name: appServiceName
+  type: string
+  default: 'appServiceName'
+- name: resourceGroup
+  type: string
+  default: PSSDev
+- name: azureSubscription
+  type: string
+  default: 'Unit4 RD Prosoft - Dev'
+- name: subscriptionID
+  type: string
+  default: 245bac96-bc23-47e7-b08d-b4735997265c
+
+stages:
+- stage: InstallExtension
+  jobs:
+  - job: InstallExtensionJob
+    timeoutInMinutes: 10
+    steps:
+    - task: AzurePowerShell@5
+      displayName: 'Install extension for App Service'
+      inputs:
+        azureSubscription: ${{ parameters.azureSubscription}}
+        ScriptPath: '${{ parameters.projectDirectory }}/Pipeline/Scripts/Install-NetCoreContrastAssessExtension.ps1'
+        ScriptArguments: >
+          -Service ${{ parameters.appServiceName}}
+          -ResourceGroup ${{ parameters.resourceGroup}}
+          -SubscriptionID ${{ parameters.subscriptionID}}
+          -u4proVersion $(Build.BuildId)
+          -AppSettings @{"CONTRAST__API__API_KEY"="$(contrast_api_key)";"CONTRAST__API__SERVICE_KEY"="$(contrast_service_key)";"CONTRAST__API__URL"="$(contrast_url)";"CONTRAST__API__USER_NAME"="$(contrast_user_name)";"CONTRAST__APPLICATION__NAME"="${{ parameters.projectName }}"}
+        azurePowerShellVersion: 'LatestVersion'
+        pwsh: true
+        
