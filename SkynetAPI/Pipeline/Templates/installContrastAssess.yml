@@ -13,10 +13,10 @@ parameters:
   default: PSSDev
 - name: azureSubscription
   type: string
-  default: 'Unit4 RD Prosoft - Dev'
+  default: 'Skynet - Dev'
 - name: subscriptionID
   type: string
-  default: 245bac96-bc23-47e7-b08d-b4735997265c
+  default: 245bac96-bc23-47e7-b08
 
 stages:
 - stage: InstallExtension
