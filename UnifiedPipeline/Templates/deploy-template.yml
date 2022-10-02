@@ -36,7 +36,7 @@ stages:
         ProjectName: 'Skynet.API'
         AzureSubscription: ${{parameters.AzureSubscription}}
         projectDirectory:  $(Build.SourcesDirectory)/$(SkynetApi.name)
-        RepoCheckoutName: 'SkynetAPI'
+        RepoCheckoutName: 'SkynetApi'
         AppServiceName: '$(SkynetAppServiceName)-api'
         ResourceGroup: $(SkynetAppServiceName)
         DatabaseServerName: $(SkynetAppServiceName)-sql
