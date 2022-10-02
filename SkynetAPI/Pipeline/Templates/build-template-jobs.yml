@@ -53,7 +53,7 @@ jobs:
   - task: DownloadPackage@1
     inputs:
       packageType: 'nuget'
-      feed: '/374a4352-08fa-4511-b5d'
+      feed: '/374a4352-08fa-4511'
       definition: 'SKYNET.HRMS22NET.Common'
       extract: true
       version: 'latest'
@@ -62,14 +62,14 @@ jobs:
     inputs:
       packageType: 'nuget'
       feed: '/374a4352-08fa-4511-b5de-c90ac180f43d'
-      definition: 'SKYNET.HRMS21NET.Messages'
+      definition: 'SKYNET.HRMS22NET.Messages'
       extract: true
       version: 'latest'
       downloadPath: '$(System.ArtifactsDirectory)' #/lib/net462
   - task: DownloadPackage@1
     inputs:
       packageType: 'nuget'
-      feed: '/374a4352-08fa-4511-b5de-c9'
+      feed: '/374a4352-08fa-4511-b5d'
       definition: 'SKYNET.PSLib'
       extract: true
       version: 'latest'
@@ -82,12 +82,12 @@ jobs:
       script: |
         dir $(System.ArtifactsDirectory)/lib/net462
         New-Item -Path "$(Build.SourcesDirectory)" -Name "References" -ItemType "directory"
-        New-Item -Path "$(Build.SourcesDirectory)/References" -Name "HRMS22NETWeb" -ItemType "directory"
-        New-Item -Path "$(Build.SourcesDirectory)/References/HRMS22NETWeb" -Name "HRMS22NET" -ItemType "directory"
+        New-Item -Path "$(Build.SourcesDirectory)/References" -Name "HRMS23NETWeb" -ItemType "directory"
+        New-Item -Path "$(Build.SourcesDirectory)/References/HRMS23NETWeb" -Name "HRMS23NET" -ItemType "directory"
 
         Move-Item -Path $(System.ArtifactsDirectory)/lib/net462/*.dll -Destination $(Build.SourcesDirectory)/References/HRMS22NETWeb/HRMS22NET
       
-        dir $(Build.SourcesDirectory)/References/HRMS22NETWeb/HRMS22NET
+        dir $(Build.SourcesDirectory)/References/HRMS23NETWeb/HRMS23NET
 
   - task: CmdLine@2
     displayName: Resolve O Drive Assembly References
