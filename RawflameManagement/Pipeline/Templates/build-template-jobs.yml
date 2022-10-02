@@ -4,7 +4,7 @@ parameters:
   default: 'main'
 - name: projectName
   type: string
-  default: 'PROSOFT-CloudManagement.API'
+  default: 'RawflameManagement.API'
 - name: projectDirectory
   default: $(Build.SourcesDirectory)\$(Build.Repository.Name)
   type: string
@@ -43,7 +43,7 @@ jobs:
   displayName: 'App ${{parameters.RepoCheckoutName}} Build' #Name displayed when viewing in Azure DevOps
   variables:
   - name: nugetConfigPath
-    value:  '${{parameters.projectDirectory}}/CloudManagement.API/.nuget/NuGet.config'
+    value:  '${{parameters.projectDirectory}}/RawflameManagement.API/.nuget/NuGet.config'
   pool:
     vmImage: ${{ parameters.agentImage }} #See available agent images: https://docs.microsoft.com/en-us/azure/devops/pipelines/agents/hosted?view=azure-devops#use-a-microsoft-hosted-agent
   steps:
@@ -57,9 +57,9 @@ jobs:
     displayName: dotnet restore
     inputs:
       command: restore
-      projects: '**/CloudManagement.WebAPI/*.csproj'
+      projects: '**/RMU.WebAPI/*.csproj'
       feedsToUse: config
-      nugetConfigPath: '${{parameters.projectDirectory}}/CloudManagement.API/.nuget/NuGet.config'
+      nugetConfigPath: '${{parameters.projectDirectory}}/RawflameManagement.API/.nuget/NuGet.config'
       includeNuGetOrg: true
 
   - template: Templates/Tools/SonarQubeMsBuildStart.yml@TestAutomation
@@ -74,7 +74,7 @@ jobs:
       command: publish  #The publish command does a restore, build and creates a zip file so no need to add extra steps
       publishWebProjects: false
       zipAfterPublish: true
-      projects:  '**/CloudManagement.WebAPI/*.csproj'
+      projects:  '**/RMU.PI/*.csproj'
       arguments: '--configuration ${{ parameters.buildConfiguration }} --output ${{ parameters.pathToPublish }}'
  
   - template: Templates/Tools/SonarQubeMsBuildEnd.yml@TestAutomation 
