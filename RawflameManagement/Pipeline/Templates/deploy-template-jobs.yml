@@ -60,7 +60,11 @@ parameters:
   type : string
 - name : WorkspacesName
   type : string
-
+- name: SubNetName
+  type: string
+- name: SubNetPrefix
+  type: string
+  
 jobs:
 - deployment: '${{parameters.Stage}}_${{parameters.RepoCheckoutName}}_deployment'
   displayName: '${{parameters.Stage}} ${{parameters.RepoCheckoutName}} deployment'
@@ -228,6 +232,17 @@ jobs:
               -u4proVersion $(Build.BuildId)
               -AppSettings @{"CONTRAST__API__API_KEY"="$(contrast_api_key)";"CONTRAST__API__SERVICE_KEY"="$(contrast_service_key)";"CONTRAST__API__URL"="$(contrast_url)";"CONTRAST__API__USER_NAME"="$(contrast_user_name)";"CONTRAST__APPLICATION__NAME"="${{ parameters.projectName }}"}
             azurePowerShellVersion: 'LatestVersion'
+            pwsh: true
+
+        - task: AzurePowerShell@5
+          displayName: "Create Subnets for VNET Integration"
+          condition:  ne('${{ parameters.Stage }}', 'Lab')
+          inputs:
+            azureSubscription: ${{parameters.AzureSubscription}}
+            scriptType: filePath
+            scriptPath: '$(Build.SourcesDirectory)/Pipeline/Scripts/subnet.ps1'
+            scriptArguments: '-SubNetName ${{parameters.SubNetName}} -$SubNetPrefix ${{parameters.SubNetPrefix}}'
+            azurePowerShellVersion: latestVersion
             pwsh: true
 
 - job: '${{parameters.Stage}}_${{parameters.RepoCheckoutName}}_rollback'
