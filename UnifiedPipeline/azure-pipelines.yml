@@ -43,7 +43,7 @@ variables:
   value : $[ resources.repositories['SkynetApi'].name ]
 
 - name: RMU.name
-  value : $[ resources.repositories['RMU'].name ]
+  value : $[ resources.repositories['RawManagement'].name ]
 
 
 stages:
@@ -57,6 +57,6 @@ stages:
     parameters:
       Stage: 'Lab'
       Dependency: 'Build_Stage'
-      AzureSubscription: 'saas-global-operations-new-lab'
+      AzureSubscription: 'saas-globa-lab'
       RunSkynet: ${{parameters.Run_SkynetAPI}}
       RunRMU: ${{parameters.Run_Rawflame_Management}}
