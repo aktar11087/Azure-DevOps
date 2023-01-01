@@ -8,11 +8,11 @@ variables:
   - name: AppServicePlanSku
     value: 'S1'
   - name: SkynetAppServiceName
-    value: 't-$(RegionCode)-cmu1'
+    value: 't-$(RegionCode)-sky'
   - name: RMUAppServiceName
-    value: 't-$(RegionCode)-mcs1'
+    value: 't-$(RegionCode)-rmu1'
   - name: KeyVaultName
-    value: 't-asg-u4pr-kv'
+    value: 't-eu-kv'
   - name: DatabaseEdition
     value: 'Standard'
   - name: DatabaseSku
@@ -21,9 +21,9 @@ variables:
     value: '95ada4b6-9a74-480b-82f8'
   - name: Tags
     value: '{"COSTID": "EU_SAAS_SNET_A_ALL_NPE_LAB"}'
-  - name: CMUDbSecretUser
+  - name: RMUDbSecretUser
     value: 'd-eu-cmu1-admin'
-  - name: CMUDbSecretPassword
+  - name: RMUDbSecretPassword
     value: 't-asg-cmu1-pass'
   - name: IdsClientSecretCMUPortal
     value: "IdsClientSecretCMUPortal"
@@ -33,3 +33,9 @@ variables:
     value : 'monitoring'
   - name : WorkspacesName
     value : 'Lab-LogWorkspace'
+  - name: SqlFileName
+    value: 'RMUDatabaseScript_20221013_1031_ABS_Lab'
+  - name: SubNetRMU
+    value: 'S-ASG-SUB-010-10-020-000'
+  - name: SubNetRMUPrefix
+    value: '10.10.20.0/26'
